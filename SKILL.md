@@ -1,9 +1,9 @@
 ---
 name: course-builder
-description: Build one bounded course unit or chapter from syllabus files through a gated locate-extract-enrich-plan-generate-validate pipeline with auditable source coverage.
+description: Build one bounded course unit or chapter from syllabus files through a gated locate-extract-enrich-plan-generate-validate pipeline with auditable source coverage and configurable bilingual teaching output.
 ---
 
-# Course Builder v1.1
+# Course Builder v1.2.1
 
 Use this skill when the user supplies syllabi, specifications, course frameworks, official supplements, or related source files and asks for the teaching content of one specific unit, chapter, topic, or bounded topic range.
 
@@ -18,254 +18,190 @@ Never start with a plausible textbook chapter and justify it against the syllabu
 ```text
 course-project/
 ├── sources/
-│   ├── syllabi/                # authoritative syllabus/specification/CED files
-│   ├── official-supplements/   # clarifications, corrections, formula sheets, official guides
-│   └── enrichment/             # user notes, textbooks, secondary material
-├── prompt.md                   # optional user-supplied teaching/writing prompt
-├── work/
-│   └── <run-slug>/
-│       ├── run.json
-│       ├── inventory.json
-│       ├── scope.json
-│       ├── scope.md
-│       ├── requirements.json
-│       ├── requirements.md
-│       ├── enrichment.md
-│       ├── coverage.json
-│       └── coverage.md
-└── out/
-    └── <course-slug>/
-        ├── <unit-slug>.md
-        └── <unit-slug>.sources.json
+│   ├── syllabi/
+│   ├── official-supplements/
+│   └── enrichment/
+├── prompt.md
+├── work/<run-slug>/
+│   ├── run.json
+│   ├── inventory.json
+│   ├── scope.json
+│   ├── scope.md
+│   ├── requirements.json
+│   ├── requirements.md
+│   ├── enrichment.md
+│   ├── coverage.json
+│   └── coverage.md
+└── out/<course-slug>/
+    ├── <unit-slug>.md
+    └── <unit-slug>.sources.json
 ```
 
-Chat attachments are valid inputs. Treat authoritative attached syllabi as if they were in `sources/syllabi/`; preserve the same stage order.
+Chat attachments are valid inputs and must follow the same stage order.
 
 ## Stage 0 — Bound the request
 
-Identify exactly one target unless the user explicitly requests a multi-unit or whole-course build.
+Identify exactly one target unless the user explicitly requests a multi-unit or whole-course build. Do not silently broaden the scope.
 
-Examples: `Kinematics`, `Unit 2`, `Chapter 5`, `Topics 1.3–1.7`.
+Create `run.json`. Its `language_profile` defaults to `zh-en-teaching` unless the user explicitly requests another profile.
 
-Create a stable run slug such as `ap-physics-1__kinematics`.
+Supported profiles:
 
-Do not silently broaden `Kinematics` into all mechanics or the full course.
+- `zh-en-teaching` — default functional bilingual teaching output;
+- `en-full` — essentially all student-facing teaching content in English;
+- `zh-full` — Chinese prose with canonical English terminology preserved where useful.
+
+Read `references/language-policy.md` before generation.
 
 ## Stage 1 — Inventory and classify sources
 
-Inventory every supplied source before extracting content.
-
-Classify each source as:
+Inventory every supplied source before extracting content. Classify sources as:
 
 - `authoritative_syllabus`
 - `official_supplement`
 - `user_enrichment`
 - `generation_prompt`
 
-Record filename/title, authority class, edition/year when known, and any obvious limitations.
-
 Authority order:
 
 1. authoritative syllabus;
 2. official supplements;
 3. user enrichment;
-4. external research when explicitly requested or materially needed for freshness;
+4. external research when requested or materially needed for freshness;
 5. model background knowledge for explanation only.
 
 Lower-authority material may enrich teaching but may not silently create, delete, or override syllabus requirements.
 
 ## Stage 2 — Locate the requested scope (hard gate 1)
 
-Search authoritative sources for the exact requested target. Produce `scope.json` and `scope.md`.
+Produce `scope.json` and `scope.md` answering only: **where is the requested target in the authoritative source set?**
 
-`scope.json` answers only: **where is the requested target in the authoritative source set?**
+Use actual source locators. Preserve source terminology and hierarchy. Record ambiguous or neighboring out-of-scope content rather than silently expanding.
 
-Canonical shape:
+Run:
 
-```json
-{
-  "schema_version": "1.1",
-  "course": "AP Physics 1",
-  "request": "Kinematics",
-  "status": "ready",
-  "matched_sections": [
-    {
-      "source_file": "AP-Physics-1-CED.pdf",
-      "locator": "Unit ... / Topics ... / pages ...",
-      "title": "...",
-      "evidence": "short source-faithful description"
-    }
-  ],
-  "excluded_neighbors": [],
-  "unresolved": []
-}
+```bash
+python scripts/validate_scope.py work/<run>/scope.json
 ```
 
-Rules:
-
-- `matched_sections` must point to actual supplied source content.
-- Preserve source terminology and hierarchy.
-- Record neighboring material that looks similar but is outside the requested scope in `excluded_neighbors` when this helps prevent accidental expansion.
-- If the request maps ambiguously to multiple sections, set `status: review` and explain the ambiguity.
-- If no relevant authoritative section exists, do not invent one.
-
-Run `scripts/validate_scope.py`. Generation remains blocked until this gate passes.
+Do not continue until it passes.
 
 ## Stage 3 — Build the official requirement packet (hard gate 2)
 
-From the located sections, extract all in-scope official requirements into `requirements.json` and a readable `requirements.md`.
+Extract all in-scope official requirements into `requirements.json` and `requirements.md`.
 
-Do **not** use a hard-coded teaching outline as the source of truth.
+Each requirement receives a stable `REQ-*` ID and source locator. Authoritative boundaries/exclusions receive `CON-*` IDs.
 
-Every requirement receives a stable ID and source locator:
+Recommended requirement categories include topic, learning objective, essential knowledge, skill/practice, equation/relationship, assessment objective, prerequisite, and weighting.
 
-```json
-{
-  "schema_version": "1.1",
-  "course": "AP Physics 1",
-  "request": "Kinematics",
-  "requirements": [
-    {
-      "id": "REQ-001",
-      "category": "learning_objective",
-      "text": "...",
-      "source_file": "AP-Physics-1-CED.pdf",
-      "locator": "...",
-      "scope_class": "required"
-    }
-  ],
-  "constraints": [
-    {
-      "id": "CON-001",
-      "category": "boundary_statement",
-      "text": "...",
-      "source_file": "AP-Physics-1-CED.pdf",
-      "locator": "..."
-    }
-  ],
-  "unresolved": []
-}
+Never synthesize missing official requirements from memory.
+
+Run:
+
+```bash
+python scripts/validate_requirements.py work/<run>/requirements.json
 ```
-
-Recommended requirement categories include:
-
-- `topic`
-- `learning_objective`
-- `essential_knowledge`
-- `skill_or_practice`
-- `equation_or_relationship`
-- `assessment_objective`
-- `prerequisite`
-- `weighting`
-
-Use `constraints` for boundary/exclusion statements that control what must **not** be presented as required content.
-
-Possible `scope_class` values:
-
-- `required`
-- `optional_official`
-- `supporting`
-
-Never synthesize missing official requirements from model knowledge.
-
-Run `scripts/validate_requirements.py` before continuing.
 
 ## Stage 4 — Enrichment pass
 
-Only after the official requirement packet is fixed may enrichment be added.
+Only after the official packet is fixed may enrichment be added.
 
-Write `enrichment.md` with clearly separated provenance labels:
+Write `enrichment.md` with provenance labels such as `official-supplement`, `user-supplied-enrichment`, `external-research`, or `model-explanatory-knowledge`.
 
-- `official-supplement`
-- `user-supplied-enrichment`
-- `external-research`
-- `model-explanatory-knowledge`
-
-Use enrichment for better explanations, examples, prerequisite refreshers, misconceptions, or teaching sequence—not to redefine official scope.
-
-If enrichment conflicts with an authoritative constraint, the authoritative source wins and the conflict must be recorded.
-
-External research is not mandatory when the supplied authoritative source set is sufficient. If current verification is required, keep externally verified facts distinguishable from locally sourced requirements.
+Use enrichment to improve explanation, sequencing, examples, misconceptions, or prerequisite refreshers—not to redefine official scope.
 
 ## Stage 5 — Build machine-checkable coverage (hard gate 3)
 
-Create both `coverage.json` and `coverage.md` **before** drafting the teaching chapter.
+Create `coverage.json` and `coverage.md` before drafting prose.
 
-`coverage.json` maps each requirement ID to a planned destination:
+Every required `REQ-*` ID must map to at least one planned teaching section. Every `CON-*` constraint must have an explicit handling rule.
 
-```json
-{
-  "schema_version": "1.1",
-  "status": "ready",
-  "coverage": [
-    {
-      "requirement_id": "REQ-001",
-      "planned_section": "Velocity",
-      "teaching_mode": ["intuition", "representation", "worked_example"],
-      "status": "planned"
-    }
-  ],
-  "constraint_handling": [
-    {
-      "constraint_id": "CON-001",
-      "handling": "exclude-or-label-extension"
-    }
-  ],
-  "unresolved": []
-}
+Run:
+
+```bash
+python scripts/validate_coverage.py work/<run>/requirements.json work/<run>/coverage.json
 ```
-
-Rules:
-
-- Every `required` requirement must appear exactly once or more in the coverage plan.
-- No unknown requirement ID may appear.
-- Every authoritative constraint must have an explicit handling rule.
-- A user prompt's hard-coded topic list is advisory only. If it conflicts with the official packet, the official packet wins.
-
-Run `scripts/validate_coverage.py`.
 
 ## Stage 6 — Prepare the generation packet
 
-Only after the three gates pass, assemble the generation inputs in this order:
+Only after the three source/coverage gates pass, assemble inputs in this order:
 
 1. bounded user request;
 2. `scope.json`;
 3. `requirements.json`;
 4. `enrichment.md`;
 5. `coverage.json` / `coverage.md`;
-6. user `prompt.md`, otherwise `templates/default-teaching-prompt.md`.
+6. `run.json` language profile;
+7. user `prompt.md`, otherwise `templates/default-teaching-prompt.md`.
 
-The first five items decide **what must be taught and what is bounded**. The generation prompt decides **how to teach and how to write**.
-
-A generation prompt may not override an official requirement or constraint.
+The source packet decides **what must be taught**. The teaching prompt decides **how to teach it**. The language profile decides **which language each kind of content should use**.
 
 ## Stage 7 — Generate the bounded teaching artifact
 
-Generate only the requested target.
+Generate only the requested target. Use adaptive pedagogy rather than mechanical templating.
 
-For large units, drafting may happen internally in sections, but the delivered artifact should be coherent and complete.
+### Default bilingual policy: `zh-en-teaching`
 
-Use adaptive pedagogy rather than mechanical templating. A hook, misconception block, worked example, graph translation task, or derivation should appear because it serves learning—not because every subsection must contain every device.
+This is **not** line-by-line translation. Each language has a different job.
 
-When optional extension material materially improves understanding, label it clearly as non-required/extension content according to the course context.
+Use **English-first** for content the teacher/student may need to recognize, say, write, or reason with in an English-language exam or classroom, including:
+
+- official terminology and high-value definitions;
+- physics/disciplinary relationships;
+- directional, spatial, sign, component, and representation relationships;
+- graph interpretation statements;
+- model assumptions and conditions;
+- derivation steps that carry physical meaning;
+- problem-recognition cues and exam wording;
+- worked-example physics reasoning and short justifications;
+- reusable claim/reasoning sentence patterns.
+
+Use **Chinese-first** for reading-load reduction and navigation, including:
+
+- section headings and structural labels;
+- transitions between ideas;
+- short teaching commentary;
+- misconception framing and diagnosis;
+- summary/navigation labels such as `核心误区`, `关系式总表`, `知识地图`, `题型识别`, `自查清单`;
+- meta-level explanation of why the next step matters.
+
+Use **selective bilingual presentation** for:
+
+- first occurrence of important terminology, e.g. `displacement（位移）`;
+- official objective wording followed by a concise Chinese interpretation;
+- exam-ready English sentence patterns followed by a short Chinese usage note;
+- table labels when both exam recognition and fast scanning matter.
+
+Do not duplicate every paragraph in both languages.
 
 For Markdown intended for Obsidian-style rendering, use `$...$` for inline math and `$$...$$` for display math.
 
-## Stage 8 — Validate against evidence, not memory
+## Stage 8 — Validate against evidence and language policy
 
-Validate the finished document against `requirements.json`, `coverage.json`, and authoritative constraints.
+Validate the finished document against requirements, coverage, constraints, and `run.json`.
 
 Check at minimum:
 
-- all required IDs planned in coverage are actually represented in the final artifact;
+- every required ID is represented;
 - no authoritative constraint is violated without an explicit extension label;
 - no enrichment-only topic is presented as official required content;
 - official terminology remains source-faithful;
-- formulas and math markup are valid and not duplicated by paste/render artifacts;
-- teaching devices introduced in the prompt are closed properly (for example, a driving question is revisited if one was used);
-- output remains within the requested target.
+- formulas and math markup are valid;
+- output remains within the requested target;
+- the selected `language_profile` is actually reflected in the output.
 
-Run `scripts/validate_run.py` in folder workflows.
+Run:
+
+```bash
+python scripts/validate_run.py \
+  work/<run>/scope.json \
+  work/<run>/requirements.json \
+  work/<run>/coverage.json \
+  out/<course>/<unit>.md \
+  --run work/<run>/run.json
+```
+
+`zh-en-teaching` must contain meaningful amounts of both English and Chinese. `en-full` and `zh-full` are checked against their requested primary language.
 
 ## Stage 9 — Save reusable output
 
@@ -276,9 +212,9 @@ out/<course-slug>/<unit-slug>.md
 out/<course-slug>/<unit-slug>.sources.json
 ```
 
-The companion provenance file records the source set, matched sections, requirement IDs, enrichment sources, generation prompt, validation result, and unresolved items.
+The provenance file should record source set, matched sections, requirement IDs, enrichment sources, generation prompt, validation result, unresolved items, and `language_profile`.
 
-Do not silently overwrite prior versions. Update intentionally when requested or create an explicit revision.
+Do not silently overwrite prior versions.
 
 ## Non-negotiable rules
 
@@ -288,5 +224,7 @@ Do not silently overwrite prior versions. Update intentionally when requested or
 - Coverage before prose.
 - Official sources outrank teaching prompts.
 - Enrichment cannot become syllabus by implication.
-- Missing source information stays missing or unresolved; do not fill it from memory.
-- One run produces one bounded target unless the user explicitly asks otherwise.
+- Missing source information stays missing or unresolved.
+- One run produces one bounded target unless explicitly requested otherwise.
+- Language choice is functional, not duplicated translation.
+- For `zh-en-teaching`, exam-facing content should remain directly usable in English while Chinese reduces navigation and reading load.
