@@ -1,4 +1,4 @@
 interface:
   display_name: "Course Builder"
-  short_description: "从 syllabus 定位范围、提取要求并生成可追溯章节内容"
-  default_prompt: "Use $course-builder end-to-end. For one bounded requested unit/topic, inventory authoritative sources, locate the exact syllabus scope, extract stable official requirement IDs and constraints, build a machine-checkable coverage plan, then generate teaching prose. Never let enrichment or a teaching prompt redefine the official syllabus."
+  short_description: "从 syllabus 定位范围、提取要求并生成可追溯的双语教学章节"
+  default_prompt: "Use $course-builder end-to-end. For one bounded requested unit/topic, inventory authoritative sources, locate the exact syllabus scope, extract stable official requirement IDs and constraints, build a machine-checkable coverage plan, then generate teaching prose. Default to the zh-en-teaching language profile: English for exam-facing terminology, definitions, relationships, derivations, representations, problem cues, and physics reasoning; Chinese for headings, transitions, misconception framing, summaries, and teacher-facing navigation. Never let enrichment, language choice, or a teaching prompt redefine the official syllabus."
