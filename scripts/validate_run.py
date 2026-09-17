@@ -8,12 +8,13 @@ ROOT=Path(__file__).parent
 def load(name:str):
     spec=importlib.util.spec_from_file_location(name,ROOT/f"{name}.py"); mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod); return mod
 
-VS=load("validate_scope"); VR=load("validate_requirements"); VC=load("validate_coverage"); VL=load("validate_language")
+VS=load("validate_scope"); VR=load("validate_requirements"); VM=load("validate_learning_map"); VC=load("validate_coverage"); VL=load("validate_language")
 
-def validate(scope:Path, requirements:Path, coverage:Path, output:Path, run:Path|None=None) -> list[str]:
+def validate(scope:Path, requirements:Path, learning_map:Path, coverage:Path, output:Path, run:Path|None=None) -> list[str]:
     errors=[]
     errors += [f"scope: {e}" for e in VS.validate(scope)]
     errors += [f"requirements: {e}" for e in VR.validate(requirements)]
+    errors += [f"learning-map: {e}" for e in VM.validate(requirements,learning_map)]
     errors += [f"coverage: {e}" for e in VC.validate(requirements,coverage)]
     if not output.is_file(): return errors+["output file missing"]
     text=output.read_text(encoding="utf-8")
@@ -24,6 +25,8 @@ def validate(scope:Path, requirements:Path, coverage:Path, output:Path, run:Path
     planned={x.get("requirement_id") for x in cov.get("coverage",[]) if isinstance(x,dict)}
     required={x.get("id") for x in req.get("requirements",[]) if isinstance(x,dict) and x.get("scope_class")=="required"}
     if not required.issubset(planned): errors.append("coverage does not include every required requirement")
+    if "Learning Mode Map" not in text and "学习模式地图" not in text and "知识点学习分类" not in text:
+        errors.append("output is missing the opening learning-mode classification section")
     run_path=run or (scope.parent/"run.json")
     if run_path.is_file(): errors += [f"language: {e}" for e in VL.validate(run_path,output)]
     else: errors.append("run.json missing; cannot validate language profile")
@@ -32,9 +35,9 @@ def validate(scope:Path, requirements:Path, coverage:Path, output:Path, run:Path
 
 def main() -> int:
     p=argparse.ArgumentParser()
-    p.add_argument("scope",type=Path); p.add_argument("requirements",type=Path); p.add_argument("coverage",type=Path); p.add_argument("output",type=Path)
+    p.add_argument("scope",type=Path); p.add_argument("requirements",type=Path); p.add_argument("learning_map",type=Path); p.add_argument("coverage",type=Path); p.add_argument("output",type=Path)
     p.add_argument("--run",type=Path)
-    args=p.parse_args(); errors=validate(args.scope,args.requirements,args.coverage,args.output,args.run)
+    args=p.parse_args(); errors=validate(args.scope,args.requirements,args.learning_map,args.coverage,args.output,args.run)
     for e in errors: print(f"ERROR: {e}")
     if not errors: print("run: OK")
     return 1 if errors else 0

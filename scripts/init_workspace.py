@@ -20,11 +20,12 @@ def main()->int:
     for rel in ["sources/syllabi","sources/official-supplements","sources/enrichment",f"work/{run}",f"out/{course_slug}"]:
         (args.root/rel).mkdir(parents=True,exist_ok=True)
     config={
-        "schema_version":"1.2",
+        "schema_version":"1.3",
         "course":args.course,
         "target":args.target,
         "run_slug":run,
         "language_profile":args.language_profile,
+        "learning_mode_profile":"ABC",
         "output":f"out/{course_slug}/{target_slug}.md",
         "provenance":f"out/{course_slug}/{target_slug}.sources.json"
     }
