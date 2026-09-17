@@ -1,6 +1,6 @@
 # course-content-builder
 
-A source-grounded pipeline for generating one bounded course unit/chapter from syllabus files.
+A source-grounded pipeline for generating one bounded course unit/chapter from syllabus files, with auditable requirement coverage and a practical bilingual teaching mode.
 
 ## Core rule
 
@@ -19,14 +19,26 @@ ENRICH
   ↓
 COVERAGE → coverage.json
   ↓
-GENERATE
+GENERATE with teaching + language profile
   ↓
 VALIDATE
   ↓
 OUT
 ```
 
-Version 1.1 adds three explicit hard gates so a long teaching prompt cannot become the de facto syllabus.
+## Default language profile: `zh-en-teaching`
+
+The output is mixed by function, not translated line by line.
+
+**English-first:** official terminology, definitions, relationships, derivations, graph/vector/spatial language, model conditions, problem cues, worked-example physics reasoning, and exam-style justifications.
+
+**Chinese-first:** section headings, transitions, misconception framing, summary/navigation labels, self-check sections, and teacher-facing commentary.
+
+High-value terms are introduced bilingually when useful, e.g. `displacement（位移）`.
+
+Other supported profiles are `en-full` and `zh-full`.
+
+See `references/language-policy.md` for the detailed contract.
 
 ## Inputs
 
@@ -47,15 +59,22 @@ Examples:
 - CIE IGCSE Physics → Waves
 - A Level Physics → Electric Fields
 
-The pipeline does not generate the full course unless explicitly requested.
-
 ## Initialize
 
 ```bash
-python scripts/init_workspace.py ./my-course --course "AP Physics 1" --target "Kinematics"
+python scripts/init_workspace.py ./my-course \
+  --course "AP Physics 1" \
+  --target "Kinematics"
 ```
 
-Then place sources in the workspace and invoke `$course-builder`.
+This defaults to `zh-en-teaching`. To override:
+
+```bash
+python scripts/init_workspace.py ./my-course \
+  --course "AP Physics 1" \
+  --target "Kinematics" \
+  --language-profile en-full
+```
 
 ## Hard gates
 
@@ -74,4 +93,4 @@ out/<course-slug>/<unit-slug>.md
 out/<course-slug>/<unit-slug>.sources.json
 ```
 
-See `references/pipeline.md` for the stage contract and `references/prompt-audit.md` for the audit of the original long teaching prompt.
+See `references/pipeline.md`, `references/language-policy.md`, and the schema references for the full contract.
