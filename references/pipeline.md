@@ -1,27 +1,37 @@
-# Pipeline contract
+# Pipeline contract · v1.1
 
-Course Builder uses a gated pipeline so that syllabus grounding and teaching prose cannot blur together.
+Course Builder prevents a long teaching prompt from becoming the source of truth.
 
-## The order
+## Order
 
-1. **REQUEST** — determine the bounded target.
-2. **INVENTORY** — know what files exist and which are authoritative.
-3. **LOCATE** — find exact syllabus sections for the target.
-4. **EXTRACT** — build the official requirement packet.
-5. **ENRICH** — add supplemental information without changing official scope.
-6. **COVERAGE PLAN** — map every official requirement to the future document.
-7. **GENERATE** — apply the pedagogical/writing prompt.
-8. **VALIDATE** — compare generated content back to official coverage and boundaries.
-9. **OUT** — save a reusable unit artifact and provenance.
+1. **REQUEST** — choose one bounded target.
+2. **INVENTORY** — classify all source files by authority.
+3. **LOCATE** — prove where the target lives in authoritative sources (`scope.json`).
+4. **REQUIREMENTS** — extract atomic official requirements and constraints (`requirements.json`).
+5. **ENRICH** — add supplemental teaching material with separate provenance.
+6. **COVERAGE** — map every required ID to a planned teaching location (`coverage.json`).
+7. **GENERATE** — apply the pedagogical prompt only after the gates pass.
+8. **VALIDATE** — verify final prose against requirement IDs and constraints.
+9. **OUT** — save the teaching artifact and provenance.
 
-## Why this order matters
+## Three hard gates
 
-A long teaching prompt can strongly bias a model toward familiar textbook structure. If generation starts before source scoping, the model may write a plausible chapter and only later try to justify it against the syllabus. That reverses the evidence flow.
+- Gate 1: `validate_scope.py`
+- Gate 2: `validate_requirements.py`
+- Gate 3: `validate_coverage.py`
 
-The scope packet therefore acts as a hard interface between source reading and content writing.
+Generation is allowed only after all three pass.
+
+## Why separate scope from requirements?
+
+`scope.json` proves **where** the requested topic is located. `requirements.json` records **what** the source requires. Keeping these separate prevents an overgrown scope file from mixing location evidence, official content, and teaching interpretation.
+
+## Why machine-readable coverage?
+
+A prose checklist can look complete while silently dropping one learning objective. Stable requirement IDs make omissions detectable before drafting begins.
 
 ## Source hierarchy
 
-Authoritative syllabus > official supplement > user enrichment > external research > model background knowledge.
+Authoritative syllabus > official supplement > user enrichment > external research > model explanatory knowledge.
 
-Model background knowledge may help explain or teach a requirement, but it cannot create a requirement that the source packet does not support.
+Lower levels can improve explanation but cannot redefine official scope.

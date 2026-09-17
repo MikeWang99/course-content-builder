@@ -1,34 +1,43 @@
-# course-builder
+# course-content-builder
 
-A source-grounded pipeline for generating one requested course unit/chapter from syllabus files.
+A source-grounded pipeline for generating one bounded course unit/chapter from syllabus files.
 
-## Core idea
+## Core rule
 
-Do not ask an LLM to "write Kinematics" first. Make it prove the syllabus scope first.
+**Prove the syllabus scope before writing teaching prose.**
 
 ```text
 REQUEST
   ↓
 INVENTORY
   ↓
-LOCATE exact syllabus section
+LOCATE → scope.json
   ↓
-EXTRACT official requirements
+REQUIREMENTS → requirements.json
   ↓
-ENRICH (separate provenance)
+ENRICH
   ↓
-COVERAGE PLAN
+COVERAGE → coverage.json
   ↓
-GENERATE with teaching prompt
+GENERATE
   ↓
-VALIDATE against scope/boundaries
+VALIDATE
   ↓
 OUT
 ```
 
+Version 1.1 adds three explicit hard gates so a long teaching prompt cannot become the de facto syllabus.
+
 ## Inputs
 
-Put official syllabi/specifications in `sources/syllabi/`, optional supplements in `sources/enrichment/`, and optionally add `prompt.md`. Files may also be supplied directly to the AI; the same stage order still applies.
+```text
+sources/syllabi/
+sources/official-supplements/
+sources/enrichment/
+prompt.md  # optional
+```
+
+Files may also be supplied directly to the AI; the same order still applies.
 
 ## One run = one bounded target
 
@@ -38,15 +47,25 @@ Examples:
 - CIE IGCSE Physics → Waves
 - A Level Physics → Electric Fields
 
-The pipeline does not generate the entire course unless explicitly requested.
+The pipeline does not generate the full course unless explicitly requested.
 
-## Initialize a workspace
+## Initialize
 
 ```bash
 python scripts/init_workspace.py ./my-course --course "AP Physics 1" --target "Kinematics"
 ```
 
-Then add source files and invoke `$course-builder`.
+Then place sources in the workspace and invoke `$course-builder`.
+
+## Hard gates
+
+```bash
+python scripts/validate_scope.py work/<run>/scope.json
+python scripts/validate_requirements.py work/<run>/requirements.json
+python scripts/validate_coverage.py work/<run>/requirements.json work/<run>/coverage.json
+```
+
+Only after all three pass should generation begin.
 
 ## Output
 
@@ -55,4 +74,4 @@ out/<course-slug>/<unit-slug>.md
 out/<course-slug>/<unit-slug>.sources.json
 ```
 
-See `references/pipeline.md` for the full contract and `references/prompt-audit.md` for the audit of the original long AP Physics 1 prompt that motivated this pipeline.
+See `references/pipeline.md` for the stage contract and `references/prompt-audit.md` for the audit of the original long teaching prompt.

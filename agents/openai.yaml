@@ -1,4 +1,4 @@
 interface:
   display_name: "Course Builder"
-  short_description: "从 syllabus 定位范围，再生成可追溯的单元教学内容"
-  default_prompt: "Use $course-builder. Never start course prose before locating and validating the requested syllabus scope. Follow REQUEST → INVENTORY → LOCATE → EXTRACT → ENRICH → COVERAGE PLAN → GENERATE → VALIDATE → OUT, and generate only the bounded unit/chapter the user asked for."
+  short_description: "从 syllabus 定位范围、提取要求并生成可追溯章节内容"
+  default_prompt: "Use $course-builder end-to-end. For one bounded requested unit/topic, inventory authoritative sources, locate the exact syllabus scope, extract stable official requirement IDs and constraints, build a machine-checkable coverage plan, then generate teaching prose. Never let enrichment or a teaching prompt redefine the official syllabus."

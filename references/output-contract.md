@@ -1,25 +1,24 @@
-# Output contract
+# Output contract · v1.1
 
-A completed run produces one bounded teaching artifact, not an entire course unless explicitly requested.
-
-Recommended output:
+A completed run produces one bounded teaching artifact unless the user explicitly requests more.
 
 ```text
 out/<course-slug>/<unit-slug>.md
 out/<course-slug>/<unit-slug>.sources.json
 ```
 
-The student-facing Markdown should be readable without source-audit clutter. Put detailed provenance in the companion `.sources.json` file.
+The student-facing Markdown should remain clean. Put audit/provenance detail in `.sources.json`.
 
-The provenance file should contain:
+The provenance file should record:
 
-- course and requested scope;
-- timestamp/run slug if available;
-- source files used;
-- matched syllabus section locators;
-- enrichment sources;
-- prompt used (`user-supplied` or bundled default);
+- course and bounded request;
+- run slug/version;
+- authoritative files and matched locators;
+- requirement IDs included;
+- official constraints;
+- enrichment sources by provenance class;
+- generation prompt used;
 - validation result;
-- unresolved items.
+- unresolved items, normally empty.
 
-For revisions, preserve a stable unit slug and distinguish revisions explicitly when overwrite was not requested.
+For revisions, preserve the stable unit slug. Overwrite only when explicitly intended; otherwise use an explicit revision suffix.

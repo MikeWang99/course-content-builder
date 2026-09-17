@@ -1,30 +1,37 @@
 ---
 name: course-builder
-description: Build one requested course unit or chapter from local syllabus sources through a gated locate-extract-enrich-generate-validate pipeline, with source traceability and reusable outputs.
+description: Build one bounded course unit or chapter from syllabus files through a gated locate-extract-enrich-plan-generate-validate pipeline with auditable source coverage.
 ---
 
-# Course Builder v1
+# Course Builder v1.1
 
-Use this skill when the user provides one or more syllabi/specifications/course-framework files and asks for the teaching content of a specific unit, chapter, topic, or bounded section.
+Use this skill when the user supplies syllabi, specifications, course frameworks, official supplements, or related source files and asks for the teaching content of one specific unit, chapter, topic, or bounded topic range.
 
-The governing rule is **scope before prose**. Never begin writing the course notes until the requested scope has been located and recorded from the supplied syllabus sources.
+The governing rule is **evidence flows forward**:
+
+`REQUEST → INVENTORY → LOCATE → REQUIREMENTS → ENRICH → COVERAGE → GENERATE → VALIDATE → OUT`
+
+Never start with a plausible textbook chapter and justify it against the syllabus afterward.
 
 ## Default workspace
-
-When operating on a folder, use this structure when possible:
 
 ```text
 course-project/
 ├── sources/
-│   ├── syllabi/          # authoritative course specifications
-│   └── enrichment/       # optional clarifications, teacher notes, supplements
-├── prompt.md             # optional user-supplied generation prompt
+│   ├── syllabi/                # authoritative syllabus/specification/CED files
+│   ├── official-supplements/   # clarifications, corrections, formula sheets, official guides
+│   └── enrichment/             # user notes, textbooks, secondary material
+├── prompt.md                   # optional user-supplied teaching/writing prompt
 ├── work/
 │   └── <run-slug>/
+│       ├── run.json
 │       ├── inventory.json
 │       ├── scope.json
 │       ├── scope.md
+│       ├── requirements.json
+│       ├── requirements.md
 │       ├── enrichment.md
+│       ├── coverage.json
 │       └── coverage.md
 └── out/
     └── <course-slug>/
@@ -32,67 +39,64 @@ course-project/
         └── <unit-slug>.sources.json
 ```
 
-If files are attached directly in chat rather than stored in a folder, treat them exactly like `sources/syllabi/` or `sources/enrichment/` inputs and still follow the same stage order.
+Chat attachments are valid inputs. Treat authoritative attached syllabi as if they were in `sources/syllabi/`; preserve the same stage order.
 
-## Stage 0 — Interpret the request
+## Stage 0 — Bound the request
 
-Identify only the requested bounded target, e.g. `Kinematics`, `Unit 2`, `Chapter 5`, or `Topic 1.3–1.7`.
+Identify exactly one target unless the user explicitly requests a multi-unit or whole-course build.
 
-Do **not** expand the request into the entire course unless the user explicitly asks for the entire course.
+Examples: `Kinematics`, `Unit 2`, `Chapter 5`, `Topics 1.3–1.7`.
 
-Create a stable run slug, e.g. `ap-physics-1__kinematics`.
+Create a stable run slug such as `ap-physics-1__kinematics`.
 
-## Stage 1 — Inventory sources
+Do not silently broaden `Kinematics` into all mechanics or the full course.
 
-Inventory all supplied files before searching them.
+## Stage 1 — Inventory and classify sources
 
-Classify each source as one of:
+Inventory every supplied source before extracting content.
 
-- `authoritative_syllabus`: official specification/CED/syllabus/course framework;
-- `official_supplement`: official clarification/correction/formula sheet/teacher guide;
-- `enrichment`: textbook, teacher notes, user notes, secondary explanation;
-- `generation_prompt`: user-supplied writing/pedagogy prompt.
+Classify each source as:
+
+- `authoritative_syllabus`
+- `official_supplement`
+- `user_enrichment`
+- `generation_prompt`
+
+Record filename/title, authority class, edition/year when known, and any obvious limitations.
 
 Authority order:
 
 1. authoritative syllabus;
 2. official supplements;
-3. user-provided enrichment;
-4. external research, only when requested or needed for current verification.
+3. user enrichment;
+4. external research when explicitly requested or materially needed for freshness;
+5. model background knowledge for explanation only.
 
-Never allow enrichment to silently override a syllabus boundary.
+Lower-authority material may enrich teaching but may not silently create, delete, or override syllabus requirements.
 
-## Stage 2 — Locate the requested scope (mandatory hard gate)
+## Stage 2 — Locate the requested scope (hard gate 1)
 
-Search the authoritative syllabus sources for the requested unit/chapter/topic and locate the exact relevant section(s).
+Search authoritative sources for the exact requested target. Produce `scope.json` and `scope.md`.
 
-Produce `work/<run>/scope.json` and `scope.md` before generating teaching prose.
+`scope.json` answers only: **where is the requested target in the authoritative source set?**
 
-`scope.json` must contain:
+Canonical shape:
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "course": "AP Physics 1",
   "request": "Kinematics",
   "status": "ready",
   "matched_sections": [
     {
       "source_file": "AP-Physics-1-CED.pdf",
-      "locator": "Unit 1 / Topics 1.1-1.x / pages ...",
+      "locator": "Unit ... / Topics ... / pages ...",
       "title": "...",
       "evidence": "short source-faithful description"
     }
   ],
-  "official_requirements": {
-    "topics": [],
-    "learning_objectives": [],
-    "essential_knowledge": [],
-    "skills_or_practices": [],
-    "equations": [],
-    "boundary_statements": [],
-    "weighting": []
-  },
+  "excluded_neighbors": [],
   "unresolved": []
 }
 ```
@@ -100,115 +104,189 @@ Produce `work/<run>/scope.json` and `scope.md` before generating teaching prose.
 Rules:
 
 - `matched_sections` must point to actual supplied source content.
-- Preserve the source's terminology and organization.
-- Do not fill missing syllabus fields from general knowledge.
-- If the requested name is ambiguous, record the competing matches in `unresolved`; do not silently choose a broader scope.
-- If the source has no relevant section, say so and do not invent one.
+- Preserve source terminology and hierarchy.
+- Record neighboring material that looks similar but is outside the requested scope in `excluded_neighbors` when this helps prevent accidental expansion.
+- If the request maps ambiguously to multiple sections, set `status: review` and explain the ambiguity.
+- If no relevant authoritative section exists, do not invent one.
 
-Run `scripts/validate_scope.py` if using a folder workflow. Generation is blocked until it passes.
+Run `scripts/validate_scope.py`. Generation remains blocked until this gate passes.
 
-## Stage 3 — Extract the official content packet
+## Stage 3 — Build the official requirement packet (hard gate 2)
 
-From the located scope, build a compact, source-faithful packet containing only material relevant to the requested target:
+From the located sections, extract all in-scope official requirements into `requirements.json` and a readable `requirements.md`.
 
-- official topic hierarchy;
-- learning objectives/outcomes;
-- required knowledge/content statements;
-- science practices/assessment objectives;
-- equations or required relationships;
-- boundary/exclusion statements;
-- assessment weighting when present;
-- prerequisite/dependency statements when present.
+Do **not** use a hard-coded teaching outline as the source of truth.
 
-This packet is the **content authority** for the generation stage.
+Every requirement receives a stable ID and source locator:
 
-Do not copy unrelated neighboring units merely because they appear on the same page.
+```json
+{
+  "schema_version": "1.1",
+  "course": "AP Physics 1",
+  "request": "Kinematics",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "category": "learning_objective",
+      "text": "...",
+      "source_file": "AP-Physics-1-CED.pdf",
+      "locator": "...",
+      "scope_class": "required"
+    }
+  ],
+  "constraints": [
+    {
+      "id": "CON-001",
+      "category": "boundary_statement",
+      "text": "...",
+      "source_file": "AP-Physics-1-CED.pdf",
+      "locator": "..."
+    }
+  ],
+  "unresolved": []
+}
+```
+
+Recommended requirement categories include:
+
+- `topic`
+- `learning_objective`
+- `essential_knowledge`
+- `skill_or_practice`
+- `equation_or_relationship`
+- `assessment_objective`
+- `prerequisite`
+- `weighting`
+
+Use `constraints` for boundary/exclusion statements that control what must **not** be presented as required content.
+
+Possible `scope_class` values:
+
+- `required`
+- `optional_official`
+- `supporting`
+
+Never synthesize missing official requirements from model knowledge.
+
+Run `scripts/validate_requirements.py` before continuing.
 
 ## Stage 4 — Enrichment pass
 
-Only after the official packet exists, inspect `sources/enrichment/` and any user-supplied supplemental files.
+Only after the official requirement packet is fixed may enrichment be added.
 
-Add useful enrichment to `enrichment.md`, clearly separated from official syllabus requirements.
+Write `enrichment.md` with clearly separated provenance labels:
 
-For every enrichment item, label its provenance as one of:
+- `official-supplement`
+- `user-supplied-enrichment`
+- `external-research`
+- `model-explanatory-knowledge`
 
-- `official-supplement`;
-- `user-supplied-enrichment`;
-- `external-research`.
+Use enrichment for better explanations, examples, prerequisite refreshers, misconceptions, or teaching sequence—not to redefine official scope.
 
-External web research is optional, not the default. Use it when the user explicitly asks for latest/current verification or when the task requires current official material that is not present locally.
+If enrichment conflicts with an authoritative constraint, the authoritative source wins and the conflict must be recorded.
 
-If enrichment conflicts with an authoritative boundary, the syllabus wins and the conflict must be noted.
+External research is not mandatory when the supplied authoritative source set is sufficient. If current verification is required, keep externally verified facts distinguishable from locally sourced requirements.
 
-## Stage 5 — Build the coverage plan before prose
+## Stage 5 — Build machine-checkable coverage (hard gate 3)
 
-Create `coverage.md` mapping every official requirement to the section where it will be taught.
+Create both `coverage.json` and `coverage.md` **before** drafting the teaching chapter.
 
-Minimum structure:
+`coverage.json` maps each requirement ID to a planned destination:
 
-```markdown
-| Official requirement | Planned teaching section | Source | Status |
-|---|---|---|---|
-| ... | ... | ... | planned |
+```json
+{
+  "schema_version": "1.1",
+  "status": "ready",
+  "coverage": [
+    {
+      "requirement_id": "REQ-001",
+      "planned_section": "Velocity",
+      "teaching_mode": ["intuition", "representation", "worked_example"],
+      "status": "planned"
+    }
+  ],
+  "constraint_handling": [
+    {
+      "constraint_id": "CON-001",
+      "handling": "exclude-or-label-extension"
+    }
+  ],
+  "unresolved": []
+}
 ```
 
-No official requirement may disappear between extraction and generation.
+Rules:
 
-If the user's writing prompt contains a hard-coded topic list that differs from the official packet, treat that list as a **teaching suggestion**, not as syllabus authority. Required source content must be included; out-of-scope material must be marked as extension or omitted according to the prompt.
+- Every `required` requirement must appear exactly once or more in the coverage plan.
+- No unknown requirement ID may appear.
+- Every authoritative constraint must have an explicit handling rule.
+- A user prompt's hard-coded topic list is advisory only. If it conflicts with the official packet, the official packet wins.
 
-## Stage 6 — Generate only the requested unit/chapter
+Run `scripts/validate_coverage.py`.
 
-Choose the generation prompt in this order:
+## Stage 6 — Prepare the generation packet
 
-1. user-supplied `prompt.md` or explicitly attached prompt;
-2. `templates/default-teaching-prompt.md`.
+Only after the three gates pass, assemble the generation inputs in this order:
 
-The generation model receives, in this order:
+1. bounded user request;
+2. `scope.json`;
+3. `requirements.json`;
+4. `enrichment.md`;
+5. `coverage.json` / `coverage.md`;
+6. user `prompt.md`, otherwise `templates/default-teaching-prompt.md`.
 
-1. the bounded user request;
-2. `scope.json` / official content packet;
-3. enrichment packet;
-4. coverage plan;
-5. the generation prompt.
+The first five items decide **what must be taught and what is bounded**. The generation prompt decides **how to teach and how to write**.
 
-This order is mandatory. The generation prompt controls pedagogy and style, but it may not expand or contradict the official scope packet.
+A generation prompt may not override an official requirement or constraint.
 
-For very large units, generate internally in sections if necessary, then assemble one coherent final unit document. Do not respond with a partial unit merely because the prompt is long.
+## Stage 7 — Generate the bounded teaching artifact
 
-## Stage 7 — Validate
+Generate only the requested target.
 
-Before delivery, check:
+For large units, drafting may happen internally in sections, but the delivered artifact should be coherent and complete.
 
-- every official requirement in `coverage.md` is represented;
-- no boundary statement is violated without an explicit extension label;
-- no unsupported topic is presented as required syllabus content;
-- terminology is consistent with the source;
-- formulas/math markup are valid and not duplicated by rendering artifacts;
-- hooks/examples return to the concepts they introduce when required by the generation prompt;
-- output is only the requested unit/chapter, not the full course.
+Use adaptive pedagogy rather than mechanical templating. A hook, misconception block, worked example, graph translation task, or derivation should appear because it serves learning—not because every subsection must contain every device.
 
-When using a folder workflow, run `scripts/validate_run.py`.
+When optional extension material materially improves understanding, label it clearly as non-required/extension content according to the course context.
 
-## Stage 8 — Save outputs
+For Markdown intended for Obsidian-style rendering, use `$...$` for inline math and `$$...$$` for display math.
 
-If the user asks to save/manage the result, write the finished unit to:
+## Stage 8 — Validate against evidence, not memory
+
+Validate the finished document against `requirements.json`, `coverage.json`, and authoritative constraints.
+
+Check at minimum:
+
+- all required IDs planned in coverage are actually represented in the final artifact;
+- no authoritative constraint is violated without an explicit extension label;
+- no enrichment-only topic is presented as official required content;
+- official terminology remains source-faithful;
+- formulas and math markup are valid and not duplicated by paste/render artifacts;
+- teaching devices introduced in the prompt are closed properly (for example, a driving question is revisited if one was used);
+- output remains within the requested target.
+
+Run `scripts/validate_run.py` in folder workflows.
+
+## Stage 9 — Save reusable output
+
+Write:
 
 ```text
 out/<course-slug>/<unit-slug>.md
-```
-
-Also save a compact provenance file:
-
-```text
 out/<course-slug>/<unit-slug>.sources.json
 ```
 
-The provenance file should list source files, matched syllabus sections, enrichment sources, unresolved items (normally empty), and generation prompt used.
+The companion provenance file records the source set, matched sections, requirement IDs, enrichment sources, generation prompt, validation result, and unresolved items.
 
-Do not overwrite a previous output silently. If the same unit already exists, use an explicit revision suffix or intentionally update it when the user asks.
+Do not silently overwrite prior versions. Update intentionally when requested or create an explicit revision.
 
-## Non-negotiable order
+## Non-negotiable rules
 
-`REQUEST → INVENTORY → LOCATE → EXTRACT → ENRICH → COVERAGE PLAN → GENERATE → VALIDATE → OUT`
-
-Never reorder this as `REQUEST → GENERATE → check syllabus afterward`.
+- Scope before requirements.
+- Requirements before enrichment.
+- Requirements before coverage.
+- Coverage before prose.
+- Official sources outrank teaching prompts.
+- Enrichment cannot become syllabus by implication.
+- Missing source information stays missing or unresolved; do not fill it from memory.
+- One run produces one bounded target unless the user explicitly asks otherwise.

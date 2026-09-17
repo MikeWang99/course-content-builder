@@ -1,28 +1,17 @@
-# Scope packet schema
+# Scope packet schema · v1.1
 
-`scope.json` is the hard gate before course-content generation.
+`scope.json` answers one question: **where is the requested bounded target in the authoritative source set?**
 
-Required top-level fields:
+Required fields:
 
-- `schema_version`: currently `1.0`.
-- `course`: source course name when known.
-- `request`: user's bounded target.
-- `status`: `ready` or `review`.
-- `matched_sections`: non-empty when ready.
-- `official_requirements`: object.
-- `unresolved`: list.
+- `schema_version`: `1.1`
+- `course`: course name when known
+- `request`: user target
+- `status`: `ready` or `review`
+- `matched_sections`: non-empty when ready
+- `excluded_neighbors`: array
+- `unresolved`: array
 
-Recommended `official_requirements` arrays:
+A matched section must include `source_file`, `locator`, and preferably `title` plus a short source-faithful `evidence` description.
 
-- `topics`
-- `learning_objectives`
-- `essential_knowledge`
-- `skills_or_practices`
-- `equations`
-- `boundary_statements`
-- `weighting`
-- `prerequisites`
-
-Each extracted item should preserve source wording closely enough to remain auditable. When practical, include a source locator per item.
-
-`status=ready` requires no unresolved scope ambiguity. A missing optional syllabus category can be represented as an empty array; do not invent content to fill it.
+Do not place the whole teaching outline in `scope.json`. Official requirements belong in `requirements.json`.
