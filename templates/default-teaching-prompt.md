@@ -1,4 +1,4 @@
-# Default Teaching Content Prompt · v1.1
+# Default Teaching Content Prompt · v1.2
 
 Use this prompt only after `scope.json`, `requirements.json`, and `coverage.json` pass validation.
 
@@ -7,6 +7,18 @@ Use this prompt only after `scope.json`, `requirements.json`, and `coverage.json
 Create a complete teaching document for the **requested bounded unit/chapter/topic only**. Assume a learner who is studying the topic systematically for the first time and may not yet see why the ideas are needed.
 
 The official requirement packet controls **what must be covered**. This prompt controls **how to teach it**.
+
+## Output language profile
+
+Unless the user explicitly requests another profile, use `zh-en-teaching` from `references/language-policy.md`.
+
+This is a functional bilingual format, not a translation exercise:
+
+- **English-first:** official terminology, important definitions, physics relationships, directional/spatial statements, graph/representation language, sign conventions, derivation steps with physical meaning, model conditions, problem-recognition cues, exam-style reasoning, and worked-example physics reasoning.
+- **Chinese-first:** section headings, transitions, teacher-facing navigation, misconception explanations, summary labels, relationship-table labels, self-check sections, and short pedagogical commentary.
+- **Bilingual selectively:** first occurrence of high-value terms, official objective wording plus a concise Chinese interpretation, reusable exam sentence patterns, and table labels when dual recognition is useful.
+
+Do not write every paragraph twice. The English content should be directly usable in class or exam preparation; the Chinese content should reduce reading load and make the teaching structure faster to scan.
 
 ## Learning arc
 
@@ -29,11 +41,11 @@ A good driving question should do at least one of these:
 
 Do not use generic hooks such as “cars use velocity.”
 
-After the hook, explicitly identify what tools the learner does not yet have and show how the chapter will acquire them.
+After the hook, explain in Chinese if useful what tools are still missing, but state the core physical quantities/models in English.
 
 ## 2. Make the chapter roadmap causal
 
-Show why one idea leads to the next rather than listing headings only.
+Show why one idea leads to the next rather than listing headings only. Chinese transition sentences are encouraged here because they reduce cognitive load.
 
 For example, a new quantity or model should appear because the previous description is insufficient, not merely because it is next in a textbook.
 
@@ -56,6 +68,8 @@ For major concepts, use as many of these elements as genuinely help:
 
 Do **not** repeat all of these as twelve fixed headings for every concept.
 
+For high-value terminology, introduce the canonical English term first, e.g. `displacement（位移）`, `instantaneous velocity（瞬时速度）`, `reference frame（参考系）`.
+
 ## 4. Explain equations rather than displaying them
 
 For each important relationship, explain as applicable:
@@ -68,6 +82,8 @@ For each important relationship, explain as applicable:
 - why the relationship makes sense;
 - how a learner recognizes when to use it.
 
+Use English for the central physics statements and derivation logic when those are likely to be spoken or assessed. Chinese may be used between steps to explain why the next move is natural.
+
 Prefer derivation, graph reasoning, proportional reasoning, or model reasoning over formula memorization when those are appropriate to the subject.
 
 Use `$...$` for inline math and `$$...$$` for display math.
@@ -78,7 +94,13 @@ Where the subject uses multiple representations, explicitly translate between th
 
 Examples may include verbal descriptions, diagrams, graphs, equations, tables, vectors, symbolic models, experimental data, or other course-specific representations.
 
-Ask learners to move in both directions: representation → meaning and meaning → representation.
+Representation relationships should be stated in English where possible, for example:
+
+- `The slope of a position-time graph represents velocity.`
+- `The signed area under a velocity-time graph gives displacement.`
+- `A negative velocity indicates motion in the chosen negative direction; it does not by itself mean the object is slowing down.`
+
+A concise Chinese explanation may follow when it helps interpretation.
 
 ## 6. Teach problem recognition
 
@@ -90,6 +112,8 @@ For each major problem family, explain:
 - what common cue is misleading;
 - what conditions must be checked before using a method.
 
+Keep key cue phrases in English because students may see them directly on exams, e.g. `starts from rest`, `constant acceleration`, `relative to`, `highest point`, `neglect air resistance`.
+
 The target habit is **recognize the model → choose a representation/relationship**, not **see numbers → search for a formula**.
 
 ## 7. Use worked examples to expose thinking
@@ -100,6 +124,8 @@ A strong worked example includes:
 
 **Problem → What should we notice first? → Model/representation → Reasoning → Solution → Check → Common wrong path**
 
+The actual physics reasoning, equations, conditions, and final justification should be English-first. Short Chinese comments may explain why a step is strategically useful.
+
 ## 8. Use prediction and cognitive conflict selectively
 
 Before revealing an unintuitive result, invite a prediction when that contrast will genuinely help learning.
@@ -108,9 +134,16 @@ Do not turn every subsection into a quiz.
 
 ## 9. Diagnose misconceptions
 
-For major misconceptions, explain:
+Use Chinese-first diagnostic framing for fast reading, while preserving the central English physics statement.
 
-**Wrong intuition → Why it feels plausible → Where it fails → Correct mental model**
+Recommended form:
+
+**核心误区**
+
+- Wrong intuition: `negative acceleration means slowing down`
+- 为什么看起来合理：中文解释
+- Where it fails: English physics statement + concise Chinese explanation
+- Correct mental model: English-first, with Chinese clarification if needed
 
 Do not merely say “remember this is wrong.”
 
@@ -126,15 +159,16 @@ Do not use a familiar textbook topic to override the source packet.
 
 Use the official skills/practices/assessment objectives from `requirements.json` and `coverage.json`.
 
-Where appropriate, include prompts such as:
+Where appropriate, preserve exam-style English prompts such as:
 
-- predict without calculating;
-- sketch or interpret a representation;
-- explain reasoning;
-- justify a claim using a principle;
-- compare two models or cases;
-- reason proportionally;
-- interpret data or experimental evidence.
+- `Predict without calculating.`
+- `Sketch the graph.`
+- `Explain your reasoning.`
+- `Justify your answer using a physics principle.`
+- `Compare the two cases.`
+- `How would increasing X affect Y?`
+
+Chinese can explain what the prompt is testing or what structure a good response should use.
 
 Only include modes that are actually relevant to the supplied course requirements.
 
@@ -144,17 +178,21 @@ If a driving question was used, return to it near the end. Let the learner try a
 
 Finish with the most useful subset of:
 
-- conceptual knowledge map;
-- formula/relationship table with meaning and conditions;
+- 知识地图 / conceptual knowledge map;
+- 关系式总表 / relationship table with English relationship statements, meaning, and conditions;
 - representation summary;
-- problem-type recognition map;
-- major misconceptions;
-- `I can...` checklist mapped to official requirements.
+- 题型识别 / problem-type recognition map;
+- 核心误区 / major misconceptions;
+- 自查清单 / `I can...` checklist mapped to official requirements.
 
 The ending should make conceptual dependencies visible, not merely repeat section titles.
 
 ## Style
 
-Use the user's requested language. Preserve official terminology precisely, introducing translations when useful. Write like an expert teacher guiding a learner through reasoning—not like an encyclopedia, formula sheet, or syllabus dump.
+Default to the `zh-en-teaching` profile unless the user explicitly overrides it.
+
+Write like an expert teacher who can switch languages strategically: English carries exam-facing physics content; Chinese carries navigation, explanation glue, and teacher-facing structure.
+
+Do not translate the same full paragraph twice. Do not replace standard English physics terminology with improvised Chinese-only phrasing. Preserve official English wording when it has exam value.
 
 Prefer clear, compact explanations over repeated pedagogical boilerplate. Quality > quantity for hooks, stories, and real-world examples.
